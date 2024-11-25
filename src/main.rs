@@ -68,16 +68,22 @@ fn draw_orbit(
     }
 }
 
-fn render_stars(framebuffer: &mut Framebuffer, star_count: usize) {
-    let mut rng = rand::thread_rng();
-
-    for _ in 0..star_count {
-        let x = rng.gen_range(0..framebuffer.width);
-        let y = rng.gen_range(0..framebuffer.height);
-        framebuffer.set_current_color(0xFFFFFF);
+fn render_stars(framebuffer: &mut Framebuffer, star_count: usize, time: u32, update_interval: usize, star_positions: &mut Vec<(usize, usize)>) {
+    if time as usize % update_interval == 0 || star_positions.is_empty() {
+        let mut rng = rand::thread_rng();
+        star_positions.clear();
+        for _ in 0..star_count {
+            let x = rng.gen_range(0..framebuffer.width);
+            let y = rng.gen_range(0..framebuffer.height);
+            star_positions.push((x, y));
+        }
+    }
+    framebuffer.set_current_color(0xFFFFFF);
+    for &(x, y) in star_positions.iter() {
         framebuffer.point(x, y, 1.0, 100);
     }
 }
+
 
 pub fn start() {
     let window_width = 600;
@@ -116,6 +122,8 @@ pub fn start() {
     let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
     let mut time = 0;
+    let update_interval = 20;
+    let mut star_positions = Vec::new();
 
     let mut planet_trails: HashMap<usize, Vec<Vec3>> = HashMap::new();
     for i in 0..planet_distances.len() {
@@ -133,7 +141,7 @@ pub fn start() {
         handle_mouse(&window, &mut pov, &mut last_mouse_pos);
 	    let view_matrix = create_view_matrix(pov.eye, pov.center, pov.up);
 	    framebuffer.clear();
-        render_stars(&mut framebuffer, 300);
+        render_stars(&mut framebuffer, 300, time, update_interval, &mut star_positions);
 	    let mut uniforms = Uniforms {
 	        model_matrix: model_matrix_sun,
 	        view_matrix: &view_matrix,
