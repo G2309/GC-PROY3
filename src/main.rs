@@ -20,6 +20,7 @@ use crate::render::{create_model_matrix, create_perspective_matrix, create_view_
 use fastnoise_lite::FastNoiseLite;
 use crate::noise::{create_noise, create_cloud_noise};
 
+
 pub fn start() {
     let window_width = 600;
     let window_height = 600;
@@ -48,6 +49,7 @@ pub fn start() {
     let planet_scales = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]; // Tamaños relativos
     let planet_distances = [3.0, 5.0, 7.0, 9.0, 11.0, 13.0]; // Distancias orbitales
     let planet_speeds = [0.02, 0.015, 0.01, 0.008, 0.006, 0.004]; // Velocidades orbitales
+    let planet_shaders = [1, 3, 4, 5, 6, 8]; // Shaders específicos para los planetas
 
     // Cargar la geometría de la esfera para planetas y sol
     let obj = Obj::load_custom_obj("src/3D/sphere.obj").expect("Failed to load obj");
@@ -80,7 +82,7 @@ pub fn start() {
             noise: create_noise(1),
             cloud_noise: create_cloud_noise(),
             band_noise: FastNoiseLite::new(),
-            current_shader: 7,
+            current_shader: 7, // Shader del Sol
         };
 
         // Renderizar el Sol
@@ -98,6 +100,7 @@ pub fn start() {
             let planet_model_matrix = create_model_matrix(planet_translation, scale, Vec3::new(0.0, 0.0, 0.0));
 
             uniforms.model_matrix = planet_model_matrix;
+            uniforms.current_shader = planet_shaders[i]; // Asignar shader específico para el planeta
 
             render(&mut framebuffer, &uniforms, &vertex_array, time);
         }
