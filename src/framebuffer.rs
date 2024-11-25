@@ -61,17 +61,37 @@ impl Framebuffer {
             self.emissive_buffer[index] = emit;
         }
     }
-    pub fn set_pixel(&mut self, x: usize, y: usize, color: u32) {
-        if x < self.width && y < self.height {
-            let index = y * self.width + x;
-            self.buffer[index] = color;
+
+    pub fn line(&mut self, x0: usize, y0: usize, x1: usize, y1: usize) {
+        let mut x0 = x0 as isize;
+        let mut y0 = y0 as isize;
+        let x1 = x1 as isize;
+        let y1 = y1 as isize;
+
+        let dx = (x1 - x0).abs();
+        let dy = -(y1 - y0).abs();
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut err = dx + dy;
+
+        while x0 != x1 || y0 != y1 {
+            // Dibujar punto solo si está dentro de los límites del framebuffer
+            if x0 >= 0 && x0 < self.width as isize && y0 >= 0 && y0 < self.height as isize {
+                self.point(x0 as usize, y0 as usize, 1.0, 100); // Profundidad fija
+            }
+
+            let e2 = 2 * err;
+            if e2 >= dy {
+                err += dy;
+                x0 += sx;
+            }
+            if e2 <= dx {
+                err += dx;
+                y0 += sy;
+            }
         }
     }
 
-    // Create a color from RGB components
-    pub fn create_color(red: u8, green: u8, blue: u8) -> u32 {
-        ((red as u32) << 16) | ((green as u32) << 8) | (blue as u32)
-    }
 }
 
 // Add trait implementation for saving to BMP file
