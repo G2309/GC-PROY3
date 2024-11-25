@@ -7,11 +7,11 @@ use crate::Framebuffer;
 use crate::line::triangle_flat_shade;
 use crate::color::Color;
 
-pub struct Uniforms {
+pub struct Uniforms <'a>{
     pub model_matrix: Mat4,
-    pub view_matrix: Mat4,
-    pub projection_matrix: Mat4,
-    pub viewport_matrix: Mat4,
+    pub view_matrix: &'a Mat4,
+    pub projection_matrix: &'a Mat4,
+    pub viewport_matrix: &'a Mat4,
     pub time: u32,
     pub noise: FastNoiseLite,
     pub cloud_noise: FastNoiseLite, 

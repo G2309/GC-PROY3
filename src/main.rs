@@ -29,7 +29,7 @@ pub fn start() {
     let frame_delay = Duration::from_millis(16);
     let mut framebuffer = Framebuffer::new(window_width, window_height);
     let mut window = Window::new(
-        "Planet - Gustavo 22779",
+        "Planets Orbiting the Sun - Gustavo 22779",
         window_width,
         window_height,
         WindowOptions::default(),
@@ -37,36 +37,27 @@ pub fn start() {
     .unwrap();
 
     let mut pov = POV::new(
-        Vec3::new(5.0, 5.0, 0.0),
+        Vec3::new(15.0, 10.0, 10.0), // Ajusta la posición de la cámara para abarcar todos los planetas
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
     );
 
-    framebuffer.set_background_color(120);
+    framebuffer.set_background_color(20);
 
-    let translation = Vec3::new(0.0, 0.0, 0.0);
-    let rotation = Vec3::new(0.0, 0.0, 0.0);
-    let scale =1.0f32;
+    // Datos de los planetas
+    let planet_scales = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]; // Tamaños relativos
+    let planet_distances = [3.0, 5.0, 7.0, 9.0, 11.0, 13.0]; // Distancias orbitales
+    let planet_speeds = [0.02, 0.015, 0.01, 0.008, 0.006, 0.004]; // Velocidades orbitales
 
+    // Cargar la geometría de la esfera para planetas y sol
     let obj = Obj::load_custom_obj("src/3D/sphere.obj").expect("Failed to load obj");
     let vertex_array = obj.get_vertex_array();
 
-    let mut time = 0;
-    let mut current_shader = 1;
-    let mut current_noise = (
-        create_noise(0),
-        create_noise(1),
-        create_noise(3),
-        create_noise(4),
-        create_noise(5),
-        create_noise(6),
-        create_noise(7),
-    );
-
-    let model_matrix = create_model_matrix(translation, scale, rotation);
-    let mut view_matrix = create_view_matrix(pov.eye, pov.center, pov.up);
+    let model_matrix_sun = create_model_matrix(Vec3::new(0.0, 0.0, 0.0), 1.5, Vec3::new(0.0, 0.0, 0.0)); // El sol
     let projection_matrix = create_perspective_matrix(window_width as f32, window_height as f32);
     let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
+
+    let mut time = 0;
 
     // RENDER LOOP
     while window.is_open() {
@@ -74,83 +65,40 @@ pub fn start() {
             break;
         }
 
-        let keys = window.get_keys_pressed(minifb::KeyRepeat::No);
-        for key in keys {
-            match key {
-                Key::Key1 => {current_shader = 1; current_noise.0 = create_noise(1)},
-                Key::Key2 => {current_shader = 3; current_noise.1 = create_noise(2)},
-                Key::Key3 => {current_shader = 4; current_noise.2 = create_noise(3)},
-                Key::Key4 => {current_shader = 8; current_noise.3 = create_noise(4)},
-                Key::Key5 => {current_shader = 5; current_noise.4 = create_noise(5)},
-                Key::Key6 => {current_shader = 6; current_noise.5 = create_noise(6)},
-                Key::Key7 => {current_shader = 7; current_noise.6 = create_noise(7)},
-                _ => {}
-            }
-        }
-
         handle_input(&window, &mut pov);
-        if pov.check_if_changed() {
-            view_matrix = create_view_matrix(pov.eye, pov.center, pov.up);
-        }
+
+        let view_matrix = create_view_matrix(pov.eye, pov.center, pov.up);
 
         framebuffer.clear();
 
         let mut uniforms = Uniforms {
-            model_matrix,
-            view_matrix,
-            projection_matrix,
-            viewport_matrix,
+            model_matrix: model_matrix_sun,
+            view_matrix: &view_matrix,
+            projection_matrix: &projection_matrix,
+            viewport_matrix: &viewport_matrix,
             time,
             noise: create_noise(1),
             cloud_noise: create_cloud_noise(),
             band_noise: FastNoiseLite::new(),
-            current_shader,
+            current_shader: 7,
         };
 
-        if current_shader == 1 {
-            uniforms.current_shader = 1;
-            uniforms.model_matrix = create_model_matrix(translation, scale, rotation);
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-            let moon_angle = time as f32 * 0.02;
-            let moon_translation = Vec3::new(
-                3.0 * moon_angle.cos(),
-                0.0,
-                3.0 * moon_angle.sin(),
+        // Renderizar el Sol
+        render(&mut framebuffer, &uniforms, &vertex_array, time);
+
+        // Renderizar los planetas
+        for (i, (&distance, &scale)) in planet_distances.iter().zip(&planet_scales).enumerate() {
+            let angle = time as f32 * planet_speeds[i]; // Calcula el ángulo para cada planeta
+            let planet_translation = Vec3::new(
+                distance * angle.cos(),
+                0.0, // Todos en el mismo plano
+                distance * angle.sin(),
             );
-            let moon_angle_2 = time as f32 * 0.015;
-            let moon_translation_2 = Vec3::new(
-                5.0 * moon_angle_2.cos(),
-                3.0,
-                5.0 * moon_angle_2.sin(),
-            );
-            uniforms.current_shader = 2;
-            uniforms.model_matrix = create_model_matrix(moon_translation_2, 0.3, Vec3::new(0.0, 0.0, 0.0)); 
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-            uniforms.model_matrix = create_model_matrix(moon_translation, 0.5, Vec3::new(0.0, 0.0, 0.0));
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-        } else if current_shader == 3 {
-            uniforms.current_shader = 3;
-            uniforms.model_matrix = create_model_matrix(translation, scale * 1.75, rotation);
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-        } else if current_shader == 4 {
-            uniforms.current_shader = 4;
-            uniforms.model_matrix = create_model_matrix(translation, scale * 2.0, rotation);
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-        } else if current_shader == 5 {
-            uniforms.current_shader = 5;
-            uniforms.model_matrix = create_model_matrix(translation, scale * 4.25, rotation);
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-        } else if current_shader == 6 {
-            uniforms.current_shader = 6;
-            uniforms.model_matrix = create_model_matrix(translation, scale * 2.0 , rotation);
-            render(&mut framebuffer, &uniforms, &vertex_array, time);
-        } else if current_shader == 7 {
-            uniforms.current_shader = 7;
-            uniforms.model_matrix = create_model_matrix(translation, scale, rotation);
-            render(&mut framebuffer, &uniforms, &vertex_array, time as u32);
-        } else if current_shader == 8 {
-            uniforms.current_shader = 8;
-            uniforms.model_matrix = create_model_matrix(translation, scale * 2.0, rotation);
+
+            let planet_model_matrix = create_model_matrix(planet_translation, scale, Vec3::new(0.0, 0.0, 0.0));
+
+            uniforms.model_matrix = planet_model_matrix;
+
             render(&mut framebuffer, &uniforms, &vertex_array, time);
         }
 
@@ -163,6 +111,8 @@ pub fn start() {
         std::thread::sleep(frame_delay);
     }
 }
+
+
 
 fn handle_input(window: &Window, pov: &mut POV) {
     const ROTATION_SPEED: f32 = PI / 20.0;
