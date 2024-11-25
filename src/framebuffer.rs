@@ -61,6 +61,17 @@ impl Framebuffer {
             self.emissive_buffer[index] = emit;
         }
     }
+    pub fn set_pixel(&mut self, x: usize, y: usize, color: u32) {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            self.buffer[index] = color;
+        }
+    }
+
+    // Create a color from RGB components
+    pub fn create_color(red: u8, green: u8, blue: u8) -> u32 {
+        ((red as u32) << 16) | ((green as u32) << 8) | (blue as u32)
+    }
 }
 
 // Add trait implementation for saving to BMP file
