@@ -20,6 +20,7 @@ use crate::framebuffer::Framebuffer;
 use crate::render::{create_model_matrix, create_perspective_matrix, create_view_matrix, create_viewport_matrix, render, Uniforms};
 use fastnoise_lite::FastNoiseLite;
 use crate::noise::{create_noise, create_cloud_noise};
+use rand::Rng;
 
 fn draw_orbit(
     framebuffer: &mut Framebuffer,
@@ -64,6 +65,17 @@ fn draw_orbit(
                 framebuffer.line(x_screen1, y_screen1, x_screen2, y_screen2);
             }
         }
+    }
+}
+
+fn render_stars(framebuffer: &mut Framebuffer, star_count: usize) {
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..star_count {
+        let x = rng.gen_range(0..framebuffer.width);
+        let y = rng.gen_range(0..framebuffer.height);
+        framebuffer.set_current_color(0xFFFFFF);
+        framebuffer.point(x, y, 1.0, 100);
     }
 }
 
@@ -121,6 +133,7 @@ pub fn start() {
         handle_mouse(&window, &mut pov, &mut last_mouse_pos);
 	    let view_matrix = create_view_matrix(pov.eye, pov.center, pov.up);
 	    framebuffer.clear();
+        render_stars(&mut framebuffer, 300);
 	    let mut uniforms = Uniforms {
 	        model_matrix: model_matrix_sun,
 	        view_matrix: &view_matrix,
