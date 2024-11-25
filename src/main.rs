@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::f32::consts::PI;
 use crate::framebuffer::Framebuffer;
-use crate::render::{create_model_matrix, create_perspective_matrix, create_view_matrix, create_viewport_matrix, render, Uniforms, gaussian_blur, apply_bloom};
+use crate::render::{create_model_matrix, create_perspective_matrix, create_view_matrix, create_viewport_matrix, render, Uniforms};
 use fastnoise_lite::FastNoiseLite;
 use crate::noise::{create_noise, create_cloud_noise};
 
@@ -110,18 +110,17 @@ pub fn start() {
         planet_trails.insert(i, Vec::new());
     }
 
+    let mut last_mouse_pos: Option<(f32, f32)> = None;
+
     // RENDER LOOP
 	while window.is_open() {
 	    if window.is_key_down(Key::Escape) {
 	        break;
 	    }
-	
 	    handle_input(&window, &mut pov);
-	
+        handle_mouse(&window, &mut pov, &mut last_mouse_pos);
 	    let view_matrix = create_view_matrix(pov.eye, pov.center, pov.up);
-	
 	    framebuffer.clear();
-	
 	    let mut uniforms = Uniforms {
 	        model_matrix: model_matrix_sun,
 	        view_matrix: &view_matrix,
@@ -133,11 +132,7 @@ pub fn start() {
 	        band_noise: FastNoiseLite::new(),
 	        current_shader: 7, // Shader del Sol
 	    };
-	
-	    // Renderizar el Sol
 	    render(&mut framebuffer, &uniforms, &vertex_array, time);
-	
-	    // Renderizar los planetas
 	    for (i, (&distance, &scale)) in planet_distances.iter().zip(&planet_scales).enumerate() {
 	        let angle = time as f32 * planet_speeds[i]; // Calcula el ángulo para cada planeta
 	        let planet_translation = Vec3::new(
@@ -145,34 +140,27 @@ pub fn start() {
 	            0.0, // Todos en el mismo plano
 	            distance * angle.sin(),
 	        );
-	
 	        let planet_model_matrix = create_model_matrix(planet_translation, scale, Vec3::new(0.0, 0.0, 0.0));
-	
 	        uniforms.model_matrix = planet_model_matrix;
 	        uniforms.current_shader = planet_shaders[i]; // Asignar shader específico para el planeta
-	
 	        render(&mut framebuffer, &uniforms, &vertex_array, time);
 	    }
-	
-	    // Dibujar órbitas
 	    for &distance in &planet_distances {
 	        draw_orbit(&mut framebuffer, Vec3::new(0.0, 0.0, 0.0), distance, &uniforms);
 	    }
-	
 	    time += 1;
-	
 	    window
 	        .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
 	        .unwrap();
-	
 	    std::thread::sleep(frame_delay);
 	}
 	
 }
 
 fn handle_input(window: &Window, pov: &mut POV) {
-    const ROTATION_SPEED: f32 = PI / 20.0;
+    const ROTATION_SPEED: f32 = PI / 40.0;
     const ZOOM_SPEED: f32 = 0.75;
+    const MOVE_SPEED: f32 = 0.75;
 
     if window.is_key_down(Key::Right) {
         pov.orbit(ROTATION_SPEED, 0.0);
@@ -187,13 +175,57 @@ fn handle_input(window: &Window, pov: &mut POV) {
         pov.orbit(0.0, ROTATION_SPEED);
     }
 
-    if window.is_key_down(Key::W) {
+    if window.is_key_down(Key::Q) {
         pov.zoom(ZOOM_SPEED);
     }
-    if window.is_key_down(Key::S) {
+    if window.is_key_down(Key::E) {
         pov.zoom(-ZOOM_SPEED);
     }
+
+    let mut direction = Vec3::zeros();
+    if window.is_key_down(Key::W) {
+        direction.y -= MOVE_SPEED;
+    }
+    if window.is_key_down(Key::S) {
+        direction.y += MOVE_SPEED;
+    }
+    if window.is_key_down(Key::A) {
+        direction.x -= MOVE_SPEED; 
+    }
+    if window.is_key_down(Key::D) {
+        direction.x += MOVE_SPEED;
+    }
+
+    if direction != Vec3::zeros() {
+        pov.move_center(direction);
+    }
 }
+
+fn handle_mouse(window: &Window, pov: &mut POV, last_mouse_pos: &mut Option<(f32, f32)>) {
+    const MOUSE_ROTATION_SPEED: f32 = PI / 300.0; 
+    const SCROLL_ZOOM_SPEED: f32 = 1.0;      
+
+    if let Some((mouse_x, mouse_y)) = window.get_mouse_pos(minifb::MouseMode::Discard) {
+        if let Some((last_x, last_y)) = *last_mouse_pos {
+            let delta_x = mouse_x - last_x;
+            let delta_y = mouse_y - last_y;
+
+            pov.orbit(-delta_x * MOUSE_ROTATION_SPEED, -delta_y * MOUSE_ROTATION_SPEED);
+        }
+
+        // Actualizar la última posición del ratón
+        *last_mouse_pos = Some((mouse_x, mouse_y));
+    } else {
+        // Si no hay posición del ratón, reiniciar
+        *last_mouse_pos = None;
+    }
+
+    if let Some((_, vertical_scroll)) = window.get_scroll_wheel() {
+        pov.zoom(vertical_scroll * SCROLL_ZOOM_SPEED);
+    }
+}
+
+
 
 fn main() {
     start();
